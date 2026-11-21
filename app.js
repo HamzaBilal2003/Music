@@ -111,9 +111,11 @@ class UIManager{
  async scan(h){const items=[],walk=async d=>{for await(const[n,x]of d.entries()){if(x.kind==='directory')await walk(x);else if(EXT.test(n))items.push({handle:x})}};
   this.toast('Scanning…');try{await walk(h);await this.lib.ingest(items,(m,end)=>{this.toast(m);if(end)this.render()})}catch(e){this.toast('Scan failed')}}
  onFiles(fl){const items=[...fl].filter(f=>EXT.test(f.name)).map(file=>({file}));if(!items.length)return this.toast('No supported audio files');this.lib.ingest(items,(m,end)=>{this.toast(m);if(end)this.render()})}
- rowMenu(id){const L=this.lib,s=this.song(id),it=[['Play next',()=>this.enqueue(id,true)],['Add to queue',()=>this.enqueue(id,false)],[L.favs.has(id)?'Remove from favorites':'Add to favorites',()=>this.fav(id)],
+ rowMenu(id){const L=this.lib,s=this.song(id),it=[['Play next',()=>this.enqueue(id,true)],['Add to queue',()=>this.enqueue(id,false)],['Set cover picture',()=>this.pickCover(id)],[L.favs.has(id)?'Remove from favorites':'Add to favorites',()=>this.fav(id)],
   ['Add to playlist',()=>{if(!L.pls.length)return this.toast('Create a playlist first');this.menu('Add to playlist',L.pls.map(p=>[p.name,()=>{if(!p.ids.includes(id))p.ids.push(id);L.savePls();this.toast('Added to '+p.name)}]))}]];
   const pl=this.tab==='lists'&&this.open&&L.pls.find(p=>p.id===this.open);if(pl)it.push(['Remove from this playlist',()=>{pl.ids=pl.ids.filter(x=>x!==id);L.savePls();this.render()}]);this.menu(s.title,it)}
+ pickCover(id){if(!id)return this.toast('Play a song first');this.covId=id;$('#fCover').click()}
+ async setCover(f){const s=this.song(this.covId);if(!f||!s)return;if(this.urls.has(s.id)){URL.revokeObjectURL(this.urls.get(s.id));this.urls.delete(s.id)}s.art=f.slice(0,f.size,f.type||'image/jpeg');await this.db.putSong(s);this.toast('Cover updated');this.render();this.qRender();if(this.q[this.i]===s.id)this.meta(s)}
  fav(id=this.q[this.i]){if(!id)return;const F=this.lib.favs;F.has(id)?F.delete(id):F.add(id);this.lib.saveFavs();this.favUI();if(this.tab==='favs')this.render()}
  favUI(){$('#bFav').classList.toggle('on',this.lib.favs.has(this.q[this.i]))}
  newPl(){const n=(prompt('Playlist name')||'').trim();if(!n)return;this.lib.pls.push({id:'p'+Date.now(),name:n,ids:[]});this.lib.savePls();this.render()}
@@ -172,6 +174,7 @@ class UIManager{
    if(A==='play')this.playList(this.shown,k);else if(A==='more')this.rowMenu(k);else if(A==='grp'||A==='openpl'){this.open=k;this.render();$('#list').scrollTop=0}
    else if(A==='back'){this.open=null;this.render()}else if(A==='newpl')this.newPl();else if(A==='add')this.addMenu();
    else if(A==='renpl'||A==='delpl'){const L=this.lib,p=L.pls.find(x=>x.id===this.open);if(A==='renpl'){const n=(prompt('Rename playlist',p.name)||'').trim();if(n){p.name=n;L.savePls();this.render()}}else if(confirm('Delete playlist "'+p.name+'"?')){L.pls=L.pls.filter(x=>x!==p);L.savePls();this.open=null;this.render()}}});
+  $('#fCover').onchange=e=>{this.setCover(e.target.files[0]);e.target.value=''};$$('#bCov',()=>this.pickCover(this.q[this.i]));
   $('#fFiles').onchange=$('#fDir').onchange=e=>{this.onFiles(e.target.files);e.target.value=''};
   $$('#mini',e=>{if(!e.target.closest('button'))this.openNP(true)});$$('#mPlay',()=>this.toggle());$$('#mNext',()=>this.next());
   $$('#bClose',()=>this.openNP(false));$$('#bPlay',()=>this.toggle());$$('#bNext',()=>this.next());$$('#bPrev',()=>this.prev());$$('#bStop',()=>this.stop());$$('#bFav',()=>this.fav());
